@@ -40,6 +40,43 @@ const Store = {
         return snap.docs.map(d => ({ id: d.id, ...d.data() }));
     },
 
+    // ---------- Users & Roles ----------
+    // Ensures a profile doc exists for the signed-in user. New users are
+    // self-provisioned as 'member' (the security rules forbid self-assigning
+    // 'admin'). Returns the user's profile { id, email, role }.
+    async ensureUserDoc(user) {
+        const ref = db.collection('users').doc(user.uid);
+        const doc = await ref.get();
+        if (doc.exists) {
+            return { id: doc.id, ...doc.data() };
+        }
+        await ref.set({
+            email: user.email,
+            role: 'member',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        return { id: user.uid, email: user.email, role: 'member' };
+    },
+
+    async getMyRole(uid) {
+        const doc = await db.collection('users').doc(uid).get();
+        return doc.exists ? (doc.data().role || 'member') : 'member';
+    },
+
+    async getUsers() {
+        const snap = await db.collection('users').orderBy('email').get();
+        return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    },
+
+    // Admin-only (enforced by Firestore rules): change a user's role.
+    async setUserRole(uid, role) {
+        await db.collection('users').doc(uid).update({
+            role,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    },
+
     // ---------- Domain-specific helpers ----------
     async getDashboardStats() {
         const [clients, missions, crew, invoices, pipeline] = await Promise.all([
@@ -112,7 +149,7 @@ const Store = {
 
         // Demo pipeline
         const demoPipeline = [
-            { clientName: 'SunTrust Aviation', contactName: "Karen O'Brien", contactEmail: 'kobrien@suntrustaviation.com', source: 'Referral', stage: 'Proposal Sent', missionType: 'Ferry', estimatedValue: 22000, probability: 60, notes: 'Referred by First National. 2x Citation repositions.', nextFollowUp: '2026-06-01' },
+            { clientName: 'SunTrust Aviation', contactName: 'Karen O\'Brien', contactEmail: 'kobrien@suntrustaviation.com', source: 'Referral', stage: 'Proposal Sent', missionType: 'Ferry', estimatedValue: 22000, probability: 60, notes: 'Referred by First National. 2x Citation repositions.', nextFollowUp: '2026-06-01' },
             { clientName: 'Atlas Equipment Finance', contactName: 'Dan Morales', contactEmail: 'dmorales@atlaseqfin.com', source: 'Cold Outreach', stage: 'Discovery', missionType: 'Repossession', estimatedValue: 45000, probability: 30, notes: 'New prospect. Has 3 distressed assets in Central America.', nextFollowUp: '2026-05-28' },
         ];
 

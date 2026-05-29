@@ -1,9 +1,10 @@
-// =======================================================
+// ============================================================
 // MAIN APPLICATION CONTROLLER
-// =======================================================
+// ============================================================
 
 let currentModule = 'dashboard';
 let currentUser = null;
+let currentUserRole = null;
 
 // ---------- Authentication ----------
 function handleLogin(e) {
@@ -31,7 +32,7 @@ function handleLogout() {
 }
 
 // Auth state listener
-auth.onAuthStateChanged(user => {
+auth.onAuthStateChanged(async user => {
     if (user) {
         currentUser = user;
         document.getElementById('login-screen').style.display = 'none';
@@ -39,14 +40,37 @@ auth.onAuthStateChanged(user => {
         const initials = user.email.substring(0, 2).toUpperCase();
         document.getElementById('user-avatar').textContent = initials;
         document.getElementById('user-menu-header').textContent = user.email;
-        // Seed demo data on first use
-        Store.seedDemoData().then(() => navigateTo('dashboard'));
+
+        // Resolve this user's role (auto-provisions a 'member' profile on first login)
+        try {
+            const profile = await Store.ensureUserDoc(user);
+            currentUserRole = profile.role || 'member';
+        } catch (err) {
+            currentUserRole = 'member';
+            console.warn('Could not load user role:', err);
+        }
+        applyRoleVisibility();
+
+        // Seed demo data on first use, then open the dashboard
+        try { await Store.seedDemoData(); } catch (err) { console.warn('Seed skipped:', err); }
+        navigateTo('dashboard');
     } else {
         currentUser = null;
+        currentUserRole = null;
+        applyRoleVisibility();
         document.getElementById('login-screen').style.display = 'flex';
         document.getElementById('app').style.display = 'none';
     }
 });
+
+// Show the Admin nav only to admins (UI convenience — real enforcement is in
+// Firestore security rules and the route guard in navigateTo).
+function applyRoleVisibility() {
+    const adminNav = document.getElementById('nav-admin');
+    if (adminNav) {
+        adminNav.style.display = (currentUserRole === 'admin') ? 'flex' : 'none';
+    }
+}
 
 // ---------- Navigation ----------
 function navigateTo(module) {
@@ -67,6 +91,13 @@ function navigateTo(module) {
         case 'crew': renderCrew(content); break;
         case 'invoicing': renderInvoicing(content); break;
         case 'documents': renderDocuments(content); break;
+        case 'admin':
+            if (currentUserRole === 'admin') {
+                renderAdmin(content);
+            } else {
+                content.innerHTML = '<div class="module-empty"><h2>Access Denied</h2><p class="text-muted">Admin privileges are required to view this page.</p></div>';
+            }
+            break;
         default: content.innerHTML = '<div class="module-empty"><h2>Module not found</h2></div>';
     }
     // Close sidebar on mobile
@@ -97,7 +128,7 @@ function handleGlobalSearch(query) {
 }
 
 // ---------- Modal ----------
-function openModal(title, bodyHTML {
+function openModal(title, bodyHTML) {
     document.getElementById('modal-title').textContent = title;
     document.getElementById('modal-body').innerHTML = bodyHTML;
     document.getElementById('modal-overlay').classList.add('show');
@@ -131,7 +162,7 @@ function formatCurrency(amount) {
 }
 
 function formatDate(timestamp) {
-    if (!timestamp) return 'â';
+    if (!timestamp) return '—';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
@@ -191,7 +222,7 @@ function buildTable(columns, rows, actions) {
             if (col.format === 'currency') val = formatCurrency(val || 0);
             else if (col.format === 'date') val = formatDate(val);
             else if (col.format === 'status') val = statusBadge(val || 'unknown');
-            else val = val || 'â';
+            else val = val || '—';
             html += `<td>${val}</td>`;
         });
         if (actions) {
