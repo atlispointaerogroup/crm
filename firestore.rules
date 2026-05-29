@@ -1,0 +1,65 @@
+rules_version = '2';
+
+// ============================================================
+// AtlisPoint CRM — Firestore Security Rules
+// ------------------------------------------------------------
+// These rules are the REAL security boundary for the app. The
+// client UI only hides things for convenience; everything below
+// is enforced by Firestore on the server, so a user cannot read
+// data or escalate to admin by editing the page or calling the
+// API directly.
+//
+// Deploy: Firebase Console -> Firestore Database -> Rules ->
+//         paste this file -> Publish.
+// ============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- Helpers ----
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function roleOf(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.role;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && roleOf(request.auth.uid) == 'admin';
+    }
+
+    // ---- User profiles & roles ----
+    // Anyone signed in can read the roster (needed by the app/admin UI).
+    // A user may create ONLY their own profile and ONLY as 'member' — they
+    // can never self-assign 'admin'. Admins may create or modify any profile.
+    // Only admins can change roles or delete users.
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin()
+        || (isSignedIn()
+            && request.auth.uid == userId
+            && request.resource.data.role == 'member');
+      allow update, delete: if isAdmin();
+    }
+
+    // ---- CRM business data ----
+    // Any signed-in user can read and write the operational collections.
+    match /{collection}/{docId} {
+      allow read, write: if isSignedIn()
+        && collection in ['clients', 'crew', 'missions', 'pipeline', 'invoices', 'documents'];
+    }
+
+    // ---- Admin-only configuration ----
+    // Readable by any signed-in user, writable only by admins.
+    match /settings/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // ---- Default deny ----
+    // Anything not matched above is denied (Firestore default).
+  }
+}
