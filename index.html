@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AtlisPoint Aero Group — Operations Portal</title>
     <meta name="robots" content="noindex, nofollow">
+    <script>(function(){try{var t=localStorage.getItem('ap-theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
     <link rel="stylesheet" href="css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -56,8 +58,8 @@
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><rect y="3" width="20" height="2" rx="1"/><rect y="9" width="20" height="2" rx="1"/><rect y="15" width="20" height="2" rx="1"/></svg>
             </button>
             <div class="topbar-brand">
-                <span class="brand-mark">AP</span>
-                <span class="brand-text">AtlisPoint Ops</span>
+                <img class="brand-logo" src="https://atlispoint.com/transparent-logo.png" alt="AtlisPoint Aero Group">
+                <span class="brand-text">AtlisPoint Aero Group</span>
             </div>
         </div>
         <div class="topbar-right">
@@ -65,6 +67,10 @@
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg>
                 <input type="text" placeholder="Search clients, missions, crew..." id="global-search" oninput="handleGlobalSearch(this.value)">
             </div>
+            <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light and dark mode">
+                <svg class="icon-moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+            </button>
             <div class="topbar-user" onclick="toggleUserMenu()">
                 <div class="user-avatar" id="user-avatar">MG</div>
                 <div class="user-menu" id="user-menu">
@@ -138,6 +144,19 @@
 <!-- Toast notifications -->
 <div id="toast-container" class="toast-container"></div>
 
+<script>
+function toggleTheme(){
+    var d = document.documentElement;
+    var next = d.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    d.setAttribute('data-theme', next);
+    try { localStorage.setItem('ap-theme', next); } catch(e) {}
+}
+</script>
+
+<!-- Mapping libraries (for the dashboard world map) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+
 <script src="js/firebase-config.js"></script>
 <script src="js/store.js"></script>
 <script src="js/app.js"></script>
@@ -149,6 +168,7 @@
 <script src="js/modules/invoicing.js"></script>
 <script src="js/modules/documents.js"></script>
 <script src="js/modules/admin.js"></script>
+<script src="js/modules/worldmap.js"></script>
 
 </body>
 </html>
