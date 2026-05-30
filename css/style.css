@@ -870,3 +870,177 @@ tbody tr:last-child td { border-bottom: none; }
     .pipeline-stages { grid-template-columns: 1fr; }
     .module-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
 }
+
+/* ============================================================
+   REDESIGN LAYER — black & white + blue, light/dark, logo, map
+   Overrides the theme above. Everything below wins by order.
+   ============================================================ */
+
+/* ---- Theme variables: LIGHT is the default ---- */
+:root {
+    --bg-primary:#f4f4f5;
+    --bg-secondary:#ffffff;
+    --bg-card:#ffffff;
+    --bg-card-hover:#f3f3f5;
+    --bg-input:#ffffff;
+    --border:#e5e5e8;
+    --border-hover:#d4d4d8;
+    --text-primary:#18181b;
+    --text-secondary:#52525b;
+    --text-muted:#8a8a92;
+    --accent:#2563eb;
+    --accent-hover:#1d4ed8;
+    --accent-subtle:rgba(37,99,235,0.10);
+    --accent-contrast:#ffffff;
+    --blue:#2563eb;
+    --green:#16a34a;
+    --red:#dc2626;
+    --amber:#b45309;
+    --purple:#6d28d9;
+    --logo-filter:invert(1);
+    --wm-land:#e6e6ea;
+    --wm-land-border:#cfcfd6;
+    --wm-graticule:#d4d4d8;
+    --font-sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+    --font-serif:'Playfair Display',Georgia,'Times New Roman',serif;
+    --topbar-height:60px;
+    --shadow:0 1px 3px rgba(0,0,0,0.08);
+    --shadow-lg:0 12px 36px rgba(0,0,0,0.14);
+}
+[data-theme="dark"] {
+    --bg-primary:#0b0b0d;
+    --bg-secondary:#151517;
+    --bg-card:#151517;
+    --bg-card-hover:#1f1f24;
+    --bg-input:#1c1c20;
+    --border:#2a2a31;
+    --border-hover:#3a3a43;
+    --text-primary:#f5f5f6;
+    --text-secondary:#a7a7ae;
+    --text-muted:#74747c;
+    --accent:#3b82f6;
+    --accent-hover:#60a5fa;
+    --accent-subtle:rgba(96,165,250,0.15);
+    --accent-contrast:#ffffff;
+    --blue:#60a5fa;
+    --green:#4ade80;
+    --red:#f87171;
+    --amber:#fbbf24;
+    --purple:#a78bfa;
+    --logo-filter:none;
+    --wm-land:#202028;
+    --wm-land-border:#33333d;
+    --wm-graticule:#2c2c34;
+    --shadow:0 2px 8px rgba(0,0,0,0.4);
+    --shadow-lg:0 12px 36px rgba(0,0,0,0.5);
+}
+
+/* ---- Serif headlines ---- */
+.module-header h1, .card-header h3, .modal-header h2,
+.kpi-value, .stage-count, .crew-stat-value, .invoice-header-block h3 {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    letter-spacing: 0;
+}
+.card-header h3 { font-size: 1.12rem; }
+.module-header h1 { font-size: 1.85rem; }
+
+/* ---- Login: theme-aware bg, glow, bigger mode-aware logo ---- */
+.login-screen { background: var(--bg-primary); }
+.login-screen::before {
+    background: radial-gradient(ellipse at 70% 12%, var(--accent-subtle), transparent 60%);
+}
+.login-container { border: 1px solid var(--border-hover); }
+.login-logo .logo-icon {
+    width: 250px;
+    height: 92px;
+    margin: 0 auto 0.75rem;
+    filter: var(--logo-filter);
+}
+.login-logo h1 { display: none; }
+.login-subtitle { color: var(--text-secondary); }
+
+/* ---- Top bar brand: logo + full name ---- */
+.topbar-brand { display: flex; align-items: center; gap: 0.65rem; }
+.brand-logo { height: 36px; width: auto; filter: var(--logo-filter); }
+.brand-text { font-weight: 600; font-size: 1.02rem; letter-spacing: 0.01em; color: var(--text-primary); }
+
+/* ---- Theme toggle button ---- */
+.theme-toggle {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; padding: 0; flex-shrink: 0;
+    transition: var(--transition);
+}
+.theme-toggle:hover { border-color: var(--border-hover); color: var(--text-primary); background: var(--bg-card-hover); }
+.theme-toggle svg { width: 18px; height: 18px; }
+.theme-toggle .icon-sun { display: none; }
+.theme-toggle .icon-moon { display: block; }
+[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+[data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+
+/* ---- Buttons / accents on blue ---- */
+.btn-primary { color: var(--accent-contrast); }
+
+/* ---- KPI cards: blue accent bar, unified icon tint, serif value ---- */
+.kpi-card { position: relative; overflow: hidden; }
+.kpi-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent); }
+.kpi-icon.kpi-blue, .kpi-icon.kpi-green, .kpi-icon.kpi-purple, .kpi-icon.kpi-amber {
+    background: var(--accent-subtle); color: var(--accent);
+}
+.kpi-value { color: var(--text-primary); }
+
+/* ---- Badges: monochrome + blue, red reserved for danger ---- */
+.badge-green { background: var(--accent-subtle); color: var(--accent); }
+.badge-blue, .badge-yellow, .badge-purple, .badge-gray {
+    background: transparent; border: 1px solid var(--border-hover); color: var(--text-secondary);
+}
+.badge-red { background: transparent; border: 1px solid var(--red); color: var(--red); }
+
+/* ---- Misc semantic surfaces toned to theme ---- */
+.activity-ferry, .activity-repossession, .activity-technical { background: var(--accent-subtle); }
+.toast-success { background: var(--accent-subtle); border: 1px solid var(--accent); color: var(--accent); }
+.pipeline-stage-card.stage-won { border-color: var(--accent); }
+.pipeline-stage-card.stage-lost { border-color: var(--red); }
+.detail-section h4 { color: var(--text-primary); }
+
+/* ---- World map (Global Operations) ---- */
+.map-card { margin-bottom: 1.5rem; }
+.card-body.map-body { padding: 0; position: relative; }
+.world-map { width: 100%; height: 440px; position: relative; cursor: grab; }
+.world-map:active { cursor: grabbing; }
+.world-map svg { width: 100%; height: 100%; display: block; }
+.wm-sphere { fill: var(--bg-card); }
+.wm-graticule { fill: none; stroke: var(--wm-graticule); stroke-width: 0.4; opacity: 0.55; }
+.wm-country { fill: var(--wm-land); stroke: var(--wm-land-border); stroke-width: 0.4; transition: fill 0.25s, stroke 0.25s; }
+.wm-route { fill: none; stroke: var(--text-muted); stroke-width: 1; opacity: 0.5; stroke-dasharray: 2 5; stroke-linecap: round; }
+.wm-route-active { stroke: var(--accent); stroke-width: 1.8; opacity: 0.95; stroke-dasharray: 6 7; animation: wmflow 1s linear infinite; }
+@keyframes wmflow { to { stroke-dashoffset: -26; } }
+.wm-dot { fill: var(--text-secondary); stroke: var(--bg-card); stroke-width: 1; cursor: pointer; }
+.wm-dot-active { fill: var(--accent); }
+.wm-pulse { fill: var(--accent); opacity: 0.45; transform-box: fill-box; transform-origin: center; animation: wmpulse 2.4s ease-out infinite; pointer-events: none; }
+@keyframes wmpulse { 0% { transform: scale(0.5); opacity: 0.5; } 100% { transform: scale(3.2); opacity: 0; } }
+.map-tooltip {
+    position: absolute; left: 0; top: 0; pointer-events: none;
+    background: var(--bg-secondary); border: 1px solid var(--border-hover);
+    border-radius: 8px; padding: 0.5rem 0.7rem; font-size: 0.78rem; line-height: 1.45;
+    color: var(--text-primary); box-shadow: var(--shadow-lg); opacity: 0;
+    transition: opacity 0.12s; max-width: 240px; z-index: 6;
+}
+.map-legend { display: flex; align-items: center; gap: 1.1rem; font-size: 0.74rem; color: var(--text-secondary); flex-wrap: wrap; }
+.map-legend span { display: flex; align-items: center; gap: 0.4rem; }
+.lg-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.lg-active { background: var(--accent); }
+.lg-planned { background: var(--text-muted); }
+.map-hint { color: var(--text-muted); font-size: 0.7rem; }
+.map-empty { display: flex; align-items: center; justify-content: center; height: 440px; color: var(--text-muted); font-size: 0.88rem; }
+
+@media (max-width: 768px) {
+    .world-map, .map-empty { height: 300px; }
+    .brand-text { display: none; }
+    .map-hint { display: none; }
+}
