@@ -1,6 +1,6 @@
-// =======================================================
+// ============================================================
 // DASHBOARD MODULE
-// =======================================================
+// ============================================================
 
 async function renderDashboard(container) {
     try {
@@ -8,7 +8,7 @@ async function renderDashboard(container) {
         container.innerHTML = `
         <div class="module-header">
             <h1>Dashboard</h1>
-            <p class="module-subtitle">Operations overview â AtlisPoint Aero Group</p>
+            <p class="module-subtitle">Operations overview — AtlisPoint Aero Group</p>
         </div>
 
         <!-- KPI Cards -->
@@ -51,6 +51,22 @@ async function renderDashboard(container) {
             </div>
         </div>
 
+        <!-- Global Operations Map -->
+        <div class="card map-card">
+            <div class="card-header">
+                <h3>Global Operations</h3>
+                <div class="map-legend">
+                    <span><span class="lg-dot lg-active"></span>Active / dispatched</span>
+                    <span><span class="lg-dot lg-planned"></span>Planned</span>
+                    <span class="map-hint">Scroll to zoom · drag to pan</span>
+                </div>
+            </div>
+            <div class="card-body map-body">
+                <div id="world-map" class="world-map"></div>
+                <div id="map-tooltip" class="map-tooltip"></div>
+            </div>
+        </div>
+
         <!-- Recent Activity -->
         <div class="dashboard-grid">
             <div class="card">
@@ -67,7 +83,7 @@ async function renderDashboard(container) {
                             </div>
                             <div class="activity-details">
                                 <div class="activity-title">${m.type}: ${m.aircraft || m.tailNumber || 'TBD'}</div>
-                                <div class="activity-meta">${m.clientName || 'â'} &middot; ${m.departure || '?'} â ${m.destination || '?'}</div>
+                                <div class="activity-meta">${m.clientName || '—'} &middot; ${m.departure || '?'} → ${m.destination || '?'}</div>
                             </div>
                             <div>${statusBadge(m.status)}</div>
                         </div>
@@ -95,6 +111,9 @@ async function renderDashboard(container) {
             </div>
         </div>
         `;
+
+        // Initialise the live world map (defined in worldmap.js)
+        if (typeof initWorldMap === 'function') { initWorldMap(); }
     } catch (err) {
         container.innerHTML = `<div class="module-empty"><h2>Error loading dashboard</h2><p>${err.message}</p></div>`;
     }
