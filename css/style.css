@@ -897,7 +897,7 @@ tbody tr:last-child td { border-bottom: none; }
     --red:#dc2626;
     --amber:#b45309;
     --purple:#6d28d9;
-    --logo-filter:invert(1);
+    --logo-filter:none;
     --wm-land:#e6e6ea;
     --wm-land-border:#cfcfd6;
     --wm-graticule:#d4d4d8;
@@ -927,7 +927,7 @@ tbody tr:last-child td { border-bottom: none; }
     --red:#f87171;
     --amber:#fbbf24;
     --purple:#a78bfa;
-    --logo-filter:none;
+    --logo-filter:invert(1);
     --wm-land:#202028;
     --wm-land-border:#33333d;
     --wm-graticule:#2c2c34;
