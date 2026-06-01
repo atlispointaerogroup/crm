@@ -1,80 +1,83 @@
 // ============================================================
-// DATA STORE — Firestore CRUD abstraction
+// DATA STORE — Supabase (Postgres) CRUD abstraction
+// ------------------------------------------------------------
+// Login is handled by Firebase; CRM data lives in Supabase.
+// Uses the global `sb` (Supabase client) from supabase-config.js.
+// Each business table stores its record fields in a JSONB `data`
+// column, so the rest of the app keeps working unchanged.
 // ============================================================
+
+function _rowToObj(r) {
+    return Object.assign({ id: r.id, createdAt: r.created_at, updatedAt: r.updated_at }, r.data || {});
+}
 
 const Store = {
     // ---------- Generic CRUD ----------
     async getAll(collection) {
-        const snap = await db.collection(collection).orderBy('updatedAt', 'desc').get();
-        return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const { data, error } = await sb.from(collection).select('*').order('updated_at', { ascending: false });
+        if (error) throw error;
+        return (data || []).map(_rowToObj);
     },
 
     async getById(collection, id) {
-        const doc = await db.collection(collection).doc(id).get();
-        return doc.exists ? { id: doc.id, ...doc.data() } : null;
+        const { data, error } = await sb.from(collection).select('*').eq('id', id).maybeSingle();
+        if (error) throw error;
+        return data ? _rowToObj(data) : null;
     },
 
-    async add(collection, data) {
-        const now = firebase.firestore.FieldValue.serverTimestamp();
-        const ref = await db.collection(collection).add({
-            ...data,
-            createdAt: now,
-            updatedAt: now
-        });
-        return ref.id;
+    async add(collection, payload) {
+        const { data, error } = await sb.from(collection).insert({ data: payload }).select('id');
+        if (error) throw error;
+        return data && data[0] ? data[0].id : null;
     },
 
-    async update(collection, id, data) {
-        await db.collection(collection).doc(id).update({
-            ...data,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+    async update(collection, id, patch) {
+        const { data: cur, error: e1 } = await sb.from(collection).select('data').eq('id', id).maybeSingle();
+        if (e1) throw e1;
+        const merged = Object.assign({}, (cur && cur.data) ? cur.data : {}, patch);
+        const { error } = await sb.from(collection).update({ data: merged, updated_at: new Date().toISOString() }).eq('id', id);
+        if (error) throw error;
     },
 
     async remove(collection, id) {
-        await db.collection(collection).doc(id).delete();
+        const { error } = await sb.from(collection).delete().eq('id', id);
+        if (error) throw error;
     },
 
     async query(collection, field, operator, value) {
-        const snap = await db.collection(collection).where(field, operator, value).get();
-        return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        let q = sb.from(collection).select('*');
+        const col = 'data->>' + field;
+        if (operator === '!=') q = q.neq(col, value);
+        else q = q.eq(col, value);
+        const { data, error } = await q;
+        if (error) throw error;
+        return (data || []).map(_rowToObj);
     },
 
     // ---------- Users & Roles ----------
-    // Ensures a profile doc exists for the signed-in user. New users are
-    // self-provisioned as 'member' (the security rules forbid self-assigning
-    // 'admin'). Returns the user's profile { id, email, role }.
     async ensureUserDoc(user) {
-        const ref = db.collection('users').doc(user.uid);
-        const doc = await ref.get();
-        if (doc.exists) {
-            return { id: doc.id, ...doc.data() };
-        }
-        await ref.set({
-            email: user.email,
-            role: 'member',
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        const { data, error } = await sb.from('users').select('*').eq('id', user.uid).maybeSingle();
+        if (error) throw error;
+        if (data) return { id: data.id, email: data.email, role: data.role || 'member' };
+        const { error: e2 } = await sb.from('users').insert({ id: user.uid, email: user.email, role: 'member' });
+        if (e2) throw e2;
         return { id: user.uid, email: user.email, role: 'member' };
     },
 
     async getMyRole(uid) {
-        const doc = await db.collection('users').doc(uid).get();
-        return doc.exists ? (doc.data().role || 'member') : 'member';
+        const { data } = await sb.from('users').select('role').eq('id', uid).maybeSingle();
+        return data ? (data.role || 'member') : 'member';
     },
 
     async getUsers() {
-        const snap = await db.collection('users').orderBy('email').get();
-        return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const { data, error } = await sb.from('users').select('*').order('email');
+        if (error) throw error;
+        return (data || []).map(u => ({ id: u.id, email: u.email, role: u.role, createdAt: u.created_at }));
     },
 
-    // Admin-only (enforced by Firestore rules): change a user's role.
     async setUserRole(uid, role) {
-        await db.collection('users').doc(uid).update({
-            role,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        const { error } = await sb.from('users').update({ role: role, updated_at: new Date().toISOString() }).eq('id', uid);
+        if (error) throw error;
     },
 
     // ---------- Domain-specific helpers ----------
@@ -107,56 +110,31 @@ const Store = {
         };
     },
 
-    // ---------- Seed demo data ----------
+    // ---------- Seed demo data (only when the database is empty) ----------
     async seedDemoData() {
-        const clientsSnap = await db.collection('clients').limit(1).get();
-        if (!clientsSnap.empty) return; // Already seeded
+        const { data: existing } = await sb.from('clients').select('id').limit(1);
+        if (existing && existing.length) return; // Already has data
 
-        const now = firebase.firestore.FieldValue.serverTimestamp();
-
-        // Demo clients
         const demoClients = [
             { name: 'First National Aviation Finance', type: 'Bank', contactName: 'Sarah Mitchell', contactEmail: 'smitchell@fnavfinance.com', contactPhone: '(212) 555-0142', address: 'New York, NY', notes: 'Tier 1 account. Handles fleet of 40+ turboprops and light jets.', status: 'active' },
             { name: 'Pacific Leasing Corp', type: 'Lessor', contactName: 'James Chen', contactEmail: 'jchen@pacificlease.com', contactPhone: '(415) 555-0198', address: 'San Francisco, CA', notes: 'Specializes in King Air and Citation leases. 3 active repos pending.', status: 'active' },
-            { name: 'Meridian Trust Bank', type: 'Bank', contactName: 'Robert Walsh', contactEmail: 'rwalsh@meridiantrust.com', contactPhone: '(404) 555-0177', address: 'Atlanta, GA', notes: 'New prospect. Interested in ferry and technical audit services.', status: 'active' },
+            { name: 'Meridian Trust Bank', type: 'Bank', contactName: 'Robert Walsh', contactEmail: 'rwalsh@meridiantrust.com', contactPhone: '(404) 555-0177', address: 'Atlanta, GA', notes: 'New prospect. Interested in ferry and technical audit services.', status: 'active' }
         ];
-
-        for (const c of demoClients) {
-            await db.collection('clients').add({ ...c, createdAt: now, updatedAt: now });
-        }
-
-        // Demo crew
         const demoCrew = [
             { name: 'Captain David Torres', email: 'dtorres@aviatormail.com', phone: '(610) 555-0133', certifications: 'ATP, CFI, CFII', typeRatings: 'CE-525, CE-560, BE-200', medicalExpiry: '2027-03-15', status: 'available', homeBase: 'KPHL', notes: 'Primary ferry pilot. 8,000+ hours. Oceanic experienced.' },
-            { name: 'Captain Lisa Park', email: 'lpark@aviatormail.com', phone: '(305) 555-0166', certifications: 'ATP, MEI', typeRatings: 'CE-750, LR-JET, GV', medicalExpiry: '2026-11-30', status: 'available', homeBase: 'KMIA', notes: 'Heavy jet specialist. RVSM and oceanic current. 12,000+ hours.' },
-            { name: 'Captain Mike Henderson', email: 'mhenderson@aviatormail.com', phone: '(972) 555-0188', certifications: 'ATP, A&P', typeRatings: 'BE-200, BE-300, CE-525', medicalExpiry: '2027-01-20', status: 'on_mission', homeBase: 'KDFW', notes: 'Also holds A&P. Excellent for technical audit + ferry combos.' },
+            { name: 'Captain Lisa Park', email: 'lpark@aviatormail.com', phone: '(305) 555-0166', certifications: 'ATP, MEI', typeRatings: 'CE-750, LR-JET, GV', medicalExpiry: '2026-11-30', status: 'available', homeBase: 'KMIA', notes: 'Heavy jet specialist. RVSM and oceanic current. 12,000+ hours.' }
         ];
-
-        for (const c of demoCrew) {
-            await db.collection('crew').add({ ...c, createdAt: now, updatedAt: now });
-        }
-
-        // Demo missions
         const demoMissions = [
-            { type: 'Ferry', clientName: 'First National Aviation Finance', aircraft: 'Cessna Citation CJ3+ (N451FN)', tailNumber: 'N451FN', departure: 'KTEB', destination: 'KSDL', status: 'active', assignedCrew: 'Captain David Torres', estimatedHours: 5.2, estimatedCost: 18500, notes: 'Reposition after lease return inspection. Standard domestic ferry.' },
-            { type: 'Repossession', clientName: 'Pacific Leasing Corp', aircraft: 'Beechcraft King Air 350 (N802PL)', tailNumber: 'N802PL', departure: 'MMTO', destination: 'KSAT', status: 'planning', assignedCrew: 'TBD', estimatedHours: 4.8, estimatedCost: 32000, notes: 'International repo. Mexico. Requires customs coordination and security assessment.' },
-            { type: 'Technical Audit', clientName: 'Meridian Trust Bank', aircraft: 'Gulfstream G280 (N119MT)', tailNumber: 'N119MT', departure: 'KPDK', destination: 'KPDK', status: 'planning', assignedCrew: 'Captain Mike Henderson', estimatedHours: 0, estimatedCost: 8500, notes: 'Pre-purchase technical records audit. Back-to-birth review requested by buyer.' },
+            { type: 'Ferry', clientName: 'First National Aviation Finance', aircraft: 'Cessna Citation CJ3+ (N451FN)', tailNumber: 'N451FN', departure: 'KTEB', destination: 'KSDL', status: 'active', assignedCrew: 'Captain David Torres', estimatedHours: 5.2, estimatedCost: 18500, notes: 'Reposition after lease return inspection. Standard domestic ferry.' }
         ];
-
-        for (const m of demoMissions) {
-            await db.collection('missions').add({ ...m, createdAt: now, updatedAt: now });
-        }
-
-        // Demo pipeline
         const demoPipeline = [
-            { clientName: 'SunTrust Aviation', contactName: 'Karen O\'Brien', contactEmail: 'kobrien@suntrustaviation.com', source: 'Referral', stage: 'Proposal Sent', missionType: 'Ferry', estimatedValue: 22000, probability: 60, notes: 'Referred by First National. 2x Citation repositions.', nextFollowUp: '2026-06-01' },
-            { clientName: 'Atlas Equipment Finance', contactName: 'Dan Morales', contactEmail: 'dmorales@atlaseqfin.com', source: 'Cold Outreach', stage: 'Discovery', missionType: 'Repossession', estimatedValue: 45000, probability: 30, notes: 'New prospect. Has 3 distressed assets in Central America.', nextFollowUp: '2026-05-28' },
+            { clientName: 'SunTrust Aviation', contactName: 'Karen O\'Brien', contactEmail: 'kobrien@suntrustaviation.com', source: 'Referral', stage: 'Proposal Sent', missionType: 'Ferry', estimatedValue: 22000, probability: 60, notes: 'Referred by First National. 2x Citation repositions.', nextFollowUp: '2026-06-01' }
         ];
 
-        for (const p of demoPipeline) {
-            await db.collection('pipeline').add({ ...p, createdAt: now, updatedAt: now });
-        }
-
+        await sb.from('clients').insert(demoClients.map(d => ({ data: d })));
+        await sb.from('crew').insert(demoCrew.map(d => ({ data: d })));
+        await sb.from('missions').insert(demoMissions.map(d => ({ data: d })));
+        await sb.from('pipeline').insert(demoPipeline.map(d => ({ data: d })));
         console.log('Demo data seeded successfully.');
     }
 };
