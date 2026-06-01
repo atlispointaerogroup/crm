@@ -166,13 +166,8 @@ async function createUserAccount() {
             || firebase.initializeApp(firebaseConfig, 'secondary');
         const cred = await secondary.auth().createUserWithEmailAndPassword(email, pw);
 
-        // Pre-create their profile as a member (admin write is allowed by rules).
-        await db.collection('users').doc(cred.user.uid).set({
-            email: email,
-            role: 'member',
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        // Pre-create their profile as a member (admin write is allowed by RLS).
+        await sb.from('users').insert({ id: cred.user.uid, email: email, role: 'member' });
 
         await secondary.auth().signOut();
         showToast(`User ${email} created.`);

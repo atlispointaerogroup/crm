@@ -52,7 +52,7 @@
     const ACTIVE = ['active','dispatched','in transit','in_transit','enroute','en route','on_mission','ferry'];
 
     let _atlas = null;
-    let _unsub = null;
+    let _channel = null;
 
     function resolve(code) {
         if (!code) return null;
@@ -162,6 +162,14 @@
             .on('mouseleave', function () { tip(null); });
     }
 
+    async function loadMissions() {
+        try {
+            const { data } = await sb.from('missions').select('data');
+            const node = document.getElementById('world-map');
+            if (node && node._wm) updateRoutes(node, (data || []).map(function (r) { return r.data; }));
+        } catch (e) { /* leave base map */ }
+    }
+
     window.initWorldMap = async function () {
         const host = document.getElementById('world-map');
         if (!host) return;
@@ -175,13 +183,12 @@
 
         drawBase(host, atlas);
 
-        if (_unsub) { try { _unsub(); } catch (e) {} _unsub = null; }
+        loadMissions();
         try {
-            _unsub = db.collection('missions').onSnapshot(function (snap) {
-                const node = document.getElementById('world-map');
-                if (!node || !node._wm) return;
-                updateRoutes(node, snap.docs.map(function (d) { return d.data(); }));
-            }, function () { /* offline / permission — leave base map */ });
-        } catch (e) { /* db not ready */ }
+            if (_channel) { try { sb.removeChannel(_channel); } catch (e) {} _channel = null; }
+            _channel = sb.channel('missions-rt')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'missions' }, function () { loadMissions(); })
+                .subscribe();
+        } catch (e) { /* realtime not enabled — on-load fetch still populates the map */ }
     };
 })();
